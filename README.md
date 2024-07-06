@@ -25,8 +25,7 @@ This program might give false positive by Windows Defender, most likely because 
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/eslorex/ffmpeg-video-converter.git
-   cd ffmpeg-video-converter
+   git clone https://github.com/eslorex/gpu-mkv-to-mp4-converter.git
    ```
 
 2. Install the required Python packages:
