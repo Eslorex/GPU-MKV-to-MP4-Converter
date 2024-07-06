@@ -6,6 +6,7 @@ import json
 import threading
 import GPUtil
 import re
+from subprocess import CREATE_NO_WINDOW
 
 config_file = 'config.json'
 
@@ -72,7 +73,7 @@ def detect_gpu():
         gpu_info = main_gpu.name
     else:
         try:
-            result = subprocess.run(["wmic", "path", "win32_videocontroller", "get", "description"], capture_output=True, text=True)
+            result = subprocess.run(["wmic", "path", "win32_videocontroller", "get", "description"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             gpu_lines = result.stdout.strip().split("\n")[1:]
             for line in gpu_lines:
                 if "AMD" in line or "Radeon" in line:
@@ -92,7 +93,7 @@ def detect_gpu():
 
 def get_supported_streams(ffmpeg_path, input_file):
     try:
-        result = subprocess.run([ffmpeg_path, '-hide_banner', '-i', input_file], stderr=subprocess.PIPE, text=True)
+        result = subprocess.run([ffmpeg_path, '-hide_banner', '-i', input_file], stderr=subprocess.PIPE, text=True, creationflags=CREATE_NO_WINDOW)
         streams = []
         for line in result.stderr.split('\n'):
             if 'Stream #' in line:
@@ -121,7 +122,7 @@ def update_progress_bar(line, progress_var, text_widget, percentage_label, durat
 
 def run_ffmpeg(command, progress_var, text_widget, percentage_label, status_label, callback, duration):
     try:
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=CREATE_NO_WINDOW)
         while True:
             line = process.stdout.readline()
             if line == '' and process.poll() is not None:
@@ -144,7 +145,7 @@ def run_ffmpeg(command, progress_var, text_widget, percentage_label, status_labe
 
 def get_video_duration(ffmpeg_path, input_file):
     try:
-        result = subprocess.run([ffmpeg_path, '-i', input_file], stderr=subprocess.PIPE, text=True)
+        result = subprocess.run([ffmpeg_path, '-i', input_file], stderr=subprocess.PIPE, text=True, creationflags=CREATE_NO_WINDOW)
         duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
         if duration_match:
             hours, minutes, seconds = map(float, duration_match.groups())
