@@ -104,19 +104,12 @@ def get_supported_streams(ffmpeg_path, input_file):
         print(f"Error probing streams: {e}")
         return [], []
 
-def update_progress_bar(line, progress_var, text_widget, percentage_label):
+def update_progress_bar(line, progress_var, text_widget, percentage_label, duration):
     text_widget.insert(tk.END, line + "\n")
     text_widget.see(tk.END)
 
     time_pattern = re.compile(r'time=(\d+):(\d+):(\d+\.\d+)')
-    duration_pattern = re.compile(r'Duration: (\d+):(\d+):(\d+\.\d+)')
-    
-    duration = None
-    match_duration = duration_pattern.search(line)
-    if match_duration:
-        h, m, s = map(float, match_duration.groups())
-        duration = h * 3600 + m * 60 + s
-    
+
     match_time = time_pattern.search(line)
     if match_time and duration:
         h, m, s = map(float, match_time.groups())
@@ -126,7 +119,7 @@ def update_progress_bar(line, progress_var, text_widget, percentage_label):
         percentage_label.config(text=f"{percentage:.2f}%")
         app.update_idletasks()  # Ensure the UI updates
 
-def run_ffmpeg(command, progress_var, text_widget, percentage_label, status_label, callback):
+def run_ffmpeg(command, progress_var, text_widget, percentage_label, status_label, callback, duration):
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         while True:
@@ -134,7 +127,7 @@ def run_ffmpeg(command, progress_var, text_widget, percentage_label, status_labe
             if line == '' and process.poll() is not None:
                 break
             if line:
-                update_progress_bar(line.strip(), progress_var, text_widget, percentage_label)
+                update_progress_bar(line.strip(), progress_var, text_widget, percentage_label, duration)
         rc = process.poll()
         if rc != 0:
             raise subprocess.CalledProcessError(rc, command)
@@ -148,6 +141,17 @@ def run_ffmpeg(command, progress_var, text_widget, percentage_label, status_labe
         messagebox.showerror("Error", error_message)
     finally:
         callback()
+
+def get_video_duration(ffmpeg_path, input_file):
+    try:
+        result = subprocess.run([ffmpeg_path, '-i', input_file], stderr=subprocess.PIPE, text=True)
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        if duration_match:
+            hours, minutes, seconds = map(float, duration_match.groups())
+            return hours * 3600 + minutes * 60 + seconds
+    except Exception as e:
+        print(f"Error getting duration: {e}")
+    return None
 
 def convert_next_in_queue():
     if queue_listbox.size() > 0:
@@ -181,8 +185,13 @@ def convert_next_in_queue():
         
         command = f'"{ffmpeg_path}" -y -i "{input_file}" {stream_map} -c:v {encoder} {options} -preset fast "{output_file}"'
         
+        duration = get_video_duration(ffmpeg_path, input_file)
+        if duration is None:
+            messagebox.showerror("Error", "Could not get video duration.")
+            return
+        
         progress_var.set(0)
-        threading.Thread(target=run_ffmpeg, args=(command, progress_var, text_widget, percentage_label, status_label, on_conversion_complete)).start()
+        threading.Thread(target=run_ffmpeg, args=(command, progress_var, text_widget, percentage_label, status_label, on_conversion_complete, duration)).start()
 
 def on_conversion_complete():
     queue_listbox.delete(0)
@@ -215,7 +224,6 @@ queue_scrollbar = tk.Scrollbar(app, orient=tk.VERTICAL, command=queue_listbox.yv
 queue_scrollbar.grid(row=1, column=3, sticky="ns")
 queue_listbox.config(yscrollcommand=queue_scrollbar.set)
 
-# Adding and aligning the Add to Queue and Remove from Queue buttons
 button_frame = tk.Frame(app)
 button_frame.grid(row=2, column=0, columnspan=3, pady=5)
 
@@ -253,11 +261,9 @@ status_label.grid(row=9, column=0, columnspan=3, pady=5)
 
 tk.Button(app, text="Start Conversion", command=start_conversion, font=("Helvetica", 12)).grid(row=10, column=0, columnspan=3, pady=10)
 
-# Load last used paths into the UI
 output_entry.insert(0, config.get('last_output_dir', ''))
 ffmpeg_entry.insert(0, config.get('last_ffmpeg_path', ''))
 
-# Detect GPU on startup
 detect_gpu()
 
 update_queue_count()
