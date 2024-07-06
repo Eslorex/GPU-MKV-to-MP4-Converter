@@ -1,6 +1,7 @@
-# FFmpeg Video Converter with GPU
+# FFmpeg Local Video Converter with GPU
 
 This is a GUI application for converting MKV video files to MP4 format using FFmpeg. The application detects your GPU (NVIDIA or AMD) and uses the appropriate hardware-accelerated encoder to speed up the conversion process.
+This program might give false positive by Windows Defender, most likely because of GPU libraries, feel free to check the source code.
 
 ## Features
 
